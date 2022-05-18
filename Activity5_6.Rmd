@@ -1,0 +1,135 @@
+---
+title: "R Notebook"
+output: html_notebook
+---
+
+Try executing this chunk by clicking the *Run* button within the chunk or by placing your cursor inside it and pressing *Cmd+Shift+Enter*. 
+
+Add a new chunk by clicking the *Insert Chunk* button on the toolbar or by pressing *Cmd+Option+I*.
+
+When you save the notebook, an HTML file containing the code and output will be saved alongside it (click the *Preview* button or press *Cmd+Shift+K* to preview the HTML file). 
+
+
+
+```{r}
+#importing libraries
+library(utils)
+library(base)
+
+library(dplyr)
+library(ggplot2)
+library(graphics)
+library(caTools)
+library(Metrics)
+library(lubridate)
+library(stringr)
+library(caret)
+
+
+
+#importing dataset
+df <- read.csv('https://raw.githubusercontent.com/anthoniraj/dsr_datasets_final/main/19BDS0153.csv')
+#df
+df1 <- df
+#View(df1)
+```
+
+
+```{r}
+#preprocesing
+df1$Datetimes <- as.POSIXct(df1$Datetime)
+
+df1$Date <- as.Date(ymd_hms(df1$Datetime))
+
+head(df1)
+#View(df1)
+```
+
+
+```{r}
+#splitting the dataset using 80:20 rule
+
+df1$split = sample.split(df1$Adj.Close, SplitRatio=0.8)
+head(df)
+
+train = subset(df1, df1$split == TRUE)
+test = subset(df1, df1$split == FALSE)
+head(df1)
+head(test)
+head(train)
+
+# Build the model on training data
+lmMod1 <- lm(Close ~ Low + High, data=train)  # build the model
+
+Predicted <- predict(lmMod1, test)  # predict scores
+
+summary(lmMod1)
+
+#comparing actual vs predicted
+#actuals_preds <- data.frame(cbind(Volume=test$Volume, Actual_High=test$High, Actual_Low=test$Low, Predicted_Price=Predicted))  
+
+# make predicted dataframe with test set
+df2 <- test
+df2$Predicted_price <- Predicted
+
+head(df2)
+```
+
+```{r}
+
+#Calculating MSE, MAE RMSE and R squared manually
+Original = df2$Adj.Close
+d = Original - Predicted
+mse = mean((d)^2)
+mae = mean(abs(d))
+rmse = sqrt(mse)
+R2 = 1-(sum((d)^2)/sum((Original-mean(Original))^2))
+cat(" MAE:", mae, "\n", "MSE:", mse, "\n", 
+     "RMSE:", rmse, "\n", "R-squared:", R2)
+
+#Calculating MSE, MAE RMSE and R squared with functions
+  
+MAE(Predicted, Original)
+mse(Predicted, Original)
+ 
+RMSE(Predicted, Original)
+R2(Predicted, Original, form = "traditional")
+ 
+```
+
+```{r}
+#plotting the predicted value and actual values
+
+library(ggplot2)
+
+ggplot(df2, aes(x = Date)) +
+  geom_line(aes(y = Adj.Close, color = "Actual Close")) + ggtitle("Closing Stock Price: ASHOKLEY") +
+  geom_line(aes(y = Predicted_price, color = "Predicted Close")) +
+  geom_line(aes(y = Open, color = "Open")) + xlab("Date ") + ylab("Stock Price") +
+  theme(plot.title = element_text(hjust = 0.5), panel.border = element_blank()) +
+  scale_x_date(date_breaks = "3 days") +
+  scale_colour_manual("Series", values=c("Actual Close"="gray40", "Predicted Close"="firebrick4", "Open"="darkcyan"))
+
+plot(Predicted)
+
+plot(df2)
+
+###ggplot(df2,aes(Date,Adj.Close)) + 
+#  geom_line(aes(color="Original")) +
+#  geom_line(df2=Predicted,aes(color="Predicted")) +
+#  labs(color="Legend") +
+#  scale_colour_manual("", breaks = c("Original", "Predicted"),
+#                          values = c("blue", "brown")) +
+#  ggtitle("Closing Stock Prices") + 
+#  scale_x_date(date_breaks = "2 days") +
+#  theme(plot.title = element_text(lineheight=.7, face="bold"))
+```
+
+
+```{r}
+df2 = subset(df2, select = -c(split, Datetimes, Datetime) )
+#rm(df2)
+```
+
+
+
